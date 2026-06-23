@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор постов</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            padding: 40px;
+            width: 100%;
+            max-width: 640px;
+        }
+
+        .card h1 { font-size: 28px; color: #333; text-align: center; margin-bottom: 8px; }
+        .card .subtitle { text-align: center; color: #888; font-size: 14px; margin-bottom: 32px; }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-weight: 600; color: #444; margin-bottom: 6px; font-size: 14px; }
+        .form-group label .required { color: #e74c3c; margin-left: 2px; }
+
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 10px;
+            font-size: 15px; font-family: inherit; transition: border-color 0.2s, box-shadow 0.2s; outline: none;
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.15);
+        }
+        .form-group textarea { resize: vertical; min-height: 100px; }
+        .form-group .hint { font-size: 12px; color: #aaa; margin-top: 4px; }
+
+        .btn-generate {
+            width: 100%; padding: 14px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 600;
+            cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; margin-top: 8px;
+        }
+        .btn-generate:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+        .btn-generate:active { transform: translateY(0); }
+        .btn-generate:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .result { margin-top: 28px; display: none; }
+        .result.visible { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .result-label { font-weight: 600; color: #444; margin-bottom: 10px; font-size: 14px; }
+
+        .result-box {
+            background: #f8f9fa; border: 2px solid #e8e8e8; border-radius: 12px;
+            padding: 20px; font-size: 15px; line-height: 1.6; color: #333;
+            white-space: pre-wrap; word-break: break-word;
+        }
+
+        .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; }
+
+        .btn {
+            padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+            cursor: pointer; border: 2px solid transparent; transition: all 0.2s;
+        }
+
+        .btn-edit { background: #fff; color: #f39c12; border-color: #f39c12; }
+        .btn-edit:hover { background: #f39c12; color: #fff; }
+        .btn-edit.active { background: #f39c12; color: #fff; }
+
+        .btn-copy { background: #fff; color: #667eea; border-color: #667eea; }
+        .btn-copy:hover { background: #667eea; color: #fff; }
+
+        .btn-fav { background: #fff; color: #e74c3c; border-color: #e74c3c; }
+        .btn-fav:hover { background: #e74c3c; color: #fff; }
+        .btn-fav.active { background: #e74c3c; color: #fff; }
+
+        .btn-publish { background: #27ae60; color: #fff; }
+        .btn-publish:hover { background: #219a52; }
+
+        .btn-schedule { background: #2980b9; color: #fff; }
+        .btn-schedule:hover { background: #2471a3; }
+
+        .btn-remove { background: #e74c3c; color: #fff; font-size: 12px; padding: 6px 12px; }
+        .btn-remove:hover { background: #c0392b; }
+
+        .copy-msg { color: #27ae60; font-weight: 600; font-size: 13px; opacity: 0; transition: opacity 0.3s; }
+        .copy-msg.show { opacity: 1; }
+
+        .schedule-panel { display: none; margin-top: 12px; padding: 16px; background: #f0f6ff; border-radius: 10px; }
+        .schedule-panel.visible { display: block; animation: fadeIn 0.3s ease; }
+        .schedule-panel label { font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px; display: block; }
+        .schedule-panel input[type="datetime-local"] {
+            width: 100%; padding: 10px; border: 2px solid #d0d0d0; border-radius: 8px;
+            font-size: 14px; font-family: inherit; margin-bottom: 10px;
+        }
+        .schedule-panel input[type="datetime-local"]:focus { border-color: #2980b9; outline: none; }
+
+        .status-msg {
+            margin-top: 12px; padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+            display: none;
+        }
+        .status-msg.visible { display: block; animation: fadeIn 0.3s ease; }
+        .status-msg.success { background: #eafaf1; color: #27ae60; border: 2px solid #27ae60; }
+        .status-msg.error { background: #fff5f5; color: #c0392b; border: 2px solid #e74c3c; }
+
+        .favorites-section { margin-top: 40px; border-top: 2px solid #eee; padding-top: 24px; }
+        .favorites-section h2 { font-size: 20px; color: #333; margin-bottom: 16px; }
+        .favorites-empty { color: #aaa; font-size: 14px; text-align: center; padding: 20px; }
+
+        .fav-item {
+            background: #f8f9fa; border: 2px solid #e8e8e8; border-radius: 12px;
+            padding: 16px; margin-bottom: 12px;
+        }
+        .fav-item .fav-text { font-size: 14px; line-height: 1.5; color: #333; white-space: pre-wrap; word-break: break-word; margin-bottom: 10px; }
+        .fav-item .fav-date { font-size: 11px; color: #aaa; margin-bottom: 8px; }
+        .fav-item .fav-actions { display: flex; gap: 8px; }
+
+        @media (max-width: 500px) {
+            .card { padding: 24px; }
+            .card h1 { font-size: 22px; }
+            .actions { flex-direction: column; }
+            .actions .btn { width: 100%; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Генератор постов</h1>
+        <p class="subtitle">Вставьте ссылку — получите готовый пост для Telegram</p>
+
+        <form id="postForm">
+            <div class="form-group">
+                <label for="link">Ссылка на товар <span class="required">*</span></label>
+                <input type="url" id="link" name="link" placeholder="https://example.com/product" required>
+                <div class="hint">Обязательное поле — нейросеть проанализирует страницу</div>
+            </div>
+
+            <div class="form-group">
+                <label for="name">Название товара</label>
+                <input type="text" id="name" name="name" placeholder="Например: Беспроводные наушники">
+            </div>
+
+            <div class="form-group">
+                <label for="description">Описание товара</label>
+                <textarea id="description" name="description" placeholder="Расскажите, чем товар хорош..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="price">Цена или выгода</label>
+                <input type="text" id="price" name="price" placeholder="1 990 ₽ или скидка 30%">
+            </div>
+
+            <div class="form-group">
+                <label for="mood">Настроение поста</label>
+                <select id="mood" name="mood">
+                    <option value="">Как задано в voice.md</option>
+                    <option value="druzhelyubniy">Дружелюбное</option>
+                    <option value="oficialniy">Официальное</option>
+                    <option value="veseliy">Весёлое</option>
+                    <option value="vostorzhenniy">Восторженное</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn-generate" id="btnGenerate">Сформировать пост</button>
+        </form>
+
+        <div class="status-msg error" id="errorMsg"></div>
+
+        <div class="result" id="result">
+            <div class="result-label">Готовый пост:</div>
+            <div class="result-box" id="postText"></div>
+
+            <div class="actions">
+                <button class="btn btn-copy" id="btnCopy">Скопировать</button>
+                <button class="btn btn-edit" id="btnEdit">Редактировать</button>
+                <button class="btn btn-fav" id="btnFav">В избранное</button>
+                <button class="btn btn-publish" id="btnPublish">Опубликовать сейчас</button>
+                <button class="btn btn-schedule" id="btnShowSchedule">Отложенный пост</button>
+            </div>
+
+            <span class="copy-msg" id="copyMsg">Скопировано!</span>
+
+            <div class="schedule-panel" id="schedulePanel">
+                <label for="scheduleTime">Дата и время публикации:</label>
+                <input type="datetime-local" id="scheduleTime">
+                <button class="btn btn-schedule" id="btnSchedule">Запланировать</button>
+                <button class="btn btn-copy" id="btnCancelSchedule" style="margin-left:8px;">Отмена</button>
+            </div>
+
+            <div class="status-msg success" id="publishSuccess"></div>
+            <div class="status-msg error" id="publishError"></div>
+        </div>
+
+        <div class="favorites-section">
+            <h2>Избранное</h2>
+            {% if favorites %}
+                {% for item in favorites %}
+                <div class="fav-item" data-id="{{ item.id }}">
+                    <div class="fav-text">{{ item.text }}</div>
+                    <div class="fav-date">{{ item.created_at[:16].replace('T', ' ') }}</div>
+                    <div class="fav-actions">
+                        <button class="btn btn-copy btn-copy-fav" data-text="{{ item.text }}">Скопировать</button>
+                        <button class="btn btn-publish btn-publish-fav" data-text="{{ item.text }}">Опубликовать</button>
+                        <button class="btn btn-remove" data-id="{{ item.id }}">Удалить</button>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="favorites-empty">Пока нет избранных постов</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('postForm');
+        const btnGenerate = document.getElementById('btnGenerate');
+        const errorMsg = document.getElementById('errorMsg');
+        const result = document.getElementById('result');
+        const postText = document.getElementById('postText');
+        const btnCopy = document.getElementById('btnCopy');
+        const btnEdit = document.getElementById('btnEdit');
+        const btnFav = document.getElementById('btnFav');
+        const btnPublish = document.getElementById('btnPublish');
+        const btnShowSchedule = document.getElementById('btnShowSchedule');
+        const schedulePanel = document.getElementById('schedulePanel');
+        const scheduleTime = document.getElementById('scheduleTime');
+        const btnSchedule = document.getElementById('btnSchedule');
+        const btnCancelSchedule = document.getElementById('btnCancelSchedule');
+        const copyMsg = document.getElementById('copyMsg');
+        const publishSuccess = document.getElementById('publishSuccess');
+        const publishError = document.getElementById('publishError');
+
+        let currentPostText = '';
+        let currentPostLink = '';
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            errorMsg.classList.remove('visible');
+            result.classList.remove('visible');
+            publishSuccess.classList.remove('visible');
+            publishError.classList.remove('visible');
+
+            const formData = new FormData(form);
+            currentPostLink = formData.get('link');
+            btnGenerate.disabled = true;
+            btnGenerate.textContent = 'Генерация...';
+
+            try {
+                const response = await fetch('/generate', { method: 'POST', body: formData });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    errorMsg.textContent = data.error || 'Произошла ошибка';
+                    errorMsg.classList.add('visible');
+                    return;
+                }
+
+                currentPostText = data.post;
+                postText.textContent = data.post;
+                result.classList.add('visible');
+                btnFav.classList.remove('active');
+            } catch (err) {
+                errorMsg.textContent = 'Ошибка соединения с сервером';
+                errorMsg.classList.add('visible');
+            } finally {
+                btnGenerate.disabled = false;
+                btnGenerate.textContent = 'Сформировать пост';
+            }
+        });
+
+        btnCopy.addEventListener('click', function() {
+            copyToClipboard(currentPostText);
+            copyMsg.classList.add('show');
+            setTimeout(() => copyMsg.classList.remove('show'), 2000);
+        });
+
+        let isEditing = false;
+        btnEdit.addEventListener('click', function() {
+            if (!isEditing) {
+                postText.contentEditable = true;
+                postText.focus();
+                postText.style.outline = '2px solid #f39c12';
+                postText.style.borderRadius = '8px';
+                btnEdit.textContent = 'Сохранить';
+                btnEdit.classList.add('active');
+                isEditing = true;
+            } else {
+                postText.contentEditable = false;
+                postText.style.outline = '';
+                postText.style.borderRadius = '';
+                currentPostText = postText.innerText;
+                btnEdit.textContent = 'Редактировать';
+                btnEdit.classList.remove('active');
+                isEditing = false;
+            }
+        });
+
+        btnFav.addEventListener('click', async function() {
+            if (btnFav.classList.contains('active')) return;
+
+            try {
+                const resp = await fetch('/favorites/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: currentPostText, link: currentPostLink }),
+                });
+                const data = await resp.json();
+                if (data.ok) {
+                    btnFav.classList.add('active');
+                    reloadFavorites();
+                }
+            } catch (err) { /* тихо */ }
+        });
+
+        btnPublish.addEventListener('click', async function() {
+            btnPublish.disabled = true;
+            btnPublish.textContent = 'Публикация...';
+            publishSuccess.classList.remove('visible');
+            publishError.classList.remove('visible');
+
+            try {
+                const resp = await fetch('/publish', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: currentPostText }),
+                });
+                const data = await resp.json();
+
+                if (data.ok) {
+                    publishSuccess.textContent = data.message;
+                    publishSuccess.classList.add('visible');
+                } else {
+                    publishError.textContent = data.error || 'Ошибка публикации';
+                    publishError.classList.add('visible');
+                }
+            } catch (err) {
+                publishError.textContent = 'Ошибка соединения с сервером';
+                publishError.classList.add('visible');
+            } finally {
+                btnPublish.disabled = false;
+                btnPublish.textContent = 'Опубликовать сейчас';
+            }
+        });
+
+        btnShowSchedule.addEventListener('click', function() {
+            schedulePanel.classList.toggle('visible');
+            publishSuccess.classList.remove('visible');
+            publishError.classList.remove('visible');
+        });
+
+        btnCancelSchedule.addEventListener('click', function() {
+            schedulePanel.classList.remove('visible');
+        });
+
+        btnSchedule.addEventListener('click', async function() {
+            const dt = scheduleTime.value;
+            if (!dt) { alert('Укажите дату и время'); return; }
+
+            btnSchedule.disabled = true;
+            publishSuccess.classList.remove('visible');
+            publishError.classList.remove('visible');
+
+            try {
+                const resp = await fetch('/schedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: currentPostText, publish_at: dt }),
+                });
+                const data = await resp.json();
+
+                if (data.ok) {
+                    publishSuccess.textContent = data.message;
+                    publishSuccess.classList.add('visible');
+                    schedulePanel.classList.remove('visible');
+                } else {
+                    publishError.textContent = data.error || 'Ошибка планирования';
+                    publishError.classList.add('visible');
+                }
+            } catch (err) {
+                publishError.textContent = 'Ошибка соединения';
+                publishError.classList.add('visible');
+            } finally {
+                btnSchedule.disabled = false;
+            }
+        });
+
+        document.querySelectorAll('.btn-copy-fav').forEach(btn => {
+            btn.addEventListener('click', function() {
+                copyToClipboard(this.dataset.text);
+                this.textContent = 'Скопировано!';
+                setTimeout(() => this.textContent = 'Скопировать', 1500);
+            });
+        });
+
+        document.querySelectorAll('.btn-publish-fav').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                this.disabled = true;
+                this.textContent = '...';
+                try {
+                    const resp = await fetch('/publish', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: this.dataset.text }),
+                    });
+                    const data = await resp.json();
+                    this.textContent = data.ok ? 'Опубликовано!' : 'Ошибка';
+                    setTimeout(() => { this.textContent = 'Опубликовать'; this.disabled = false; }, 2000);
+                } catch { this.textContent = 'Ошибка'; setTimeout(() => { this.textContent = 'Опубликовать'; this.disabled = false; }, 2000); }
+            });
+        });
+
+        document.querySelectorAll('.btn-remove').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const id = this.dataset.id;
+                try {
+                    await fetch('/favorites/remove', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id }),
+                    });
+                    reloadFavorites();
+                } catch { /* тихо */ }
+            });
+        });
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            });
+        }
+
+        function reloadFavorites() {
+            fetch('/favorites').then(r => r.json()).then(items => {
+                const section = document.querySelector('.favorites-section');
+                let html = '<h2>Избранное</h2>';
+                if (items.length === 0) {
+                    html += '<div class="favorites-empty">Пока нет избранных постов</div>';
+                } else {
+                    items.reverse().forEach(item => {
+                        const date = item.created_at.slice(0, 16).replace('T', ' ');
+                        html += `
+                        <div class="fav-item" data-id="${item.id}">
+                            <div class="fav-text">${escapeHtml(item.text)}</div>
+                            <div class="fav-date">${date}</div>
+                            <div class="fav-actions">
+                                <button class="btn btn-copy btn-copy-fav" data-text="${escapeAttr(item.text)}">Скопировать</button>
+                                <button class="btn btn-publish btn-publish-fav" data-text="${escapeAttr(item.text)}">Опубликовать</button>
+                                <button class="btn btn-remove" data-id="${item.id}">Удалить</button>
+                            </div>
+                        </div>`;
+                    });
+                }
+                section.innerHTML = html;
+                attachFavListeners();
+            });
+        }
+
+        function attachFavListeners() {
+            document.querySelectorAll('.btn-copy-fav').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    copyToClipboard(this.dataset.text);
+                    this.textContent = 'Скопировано!';
+                    setTimeout(() => this.textContent = 'Скопировать', 1500);
+                });
+            });
+            document.querySelectorAll('.btn-publish-fav').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    this.disabled = true; this.textContent = '...';
+                    try {
+                        const resp = await fetch('/publish', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text: this.dataset.text }),
+                        });
+                        const data = await resp.json();
+                        this.textContent = data.ok ? 'Опубликовано!' : 'Ошибка';
+                        setTimeout(() => { this.textContent = 'Опубликовать'; this.disabled = false; }, 2000);
+                    } catch { this.textContent = 'Ошибка'; setTimeout(() => { this.textContent = 'Опубликовать'; this.disabled = false; }, 2000); }
+                });
+            });
+            document.querySelectorAll('.btn-remove').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    await fetch('/favorites/remove', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: this.dataset.id }),
+                    });
+                    reloadFavorites();
+                });
+            });
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+        function escapeAttr(str) {
+            return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+    </script>
+</body>
+</html>
