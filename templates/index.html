@@ -210,6 +210,7 @@
                     <div class="fav-actions">
                         <button class="btn btn-copy btn-copy-fav" data-text="{{ item.text }}">Скопировать</button>
                         <button class="btn btn-publish btn-publish-fav" data-text="{{ item.text }}">Опубликовать</button>
+                        <button class="btn btn-schedule btn-schedule-fav" data-text="{{ item.text }}">Отложенный</button>
                         <button class="btn btn-remove" data-id="{{ item.id }}">Удалить</button>
                     </div>
                 </div>
@@ -459,6 +460,7 @@
                             <div class="fav-actions">
                                 <button class="btn btn-copy btn-copy-fav" data-text="${escapeAttr(item.text)}">Скопировать</button>
                                 <button class="btn btn-publish btn-publish-fav" data-text="${escapeAttr(item.text)}">Опубликовать</button>
+                                <button class="btn btn-schedule btn-schedule-fav" data-text="${escapeAttr(item.text)}">Отложенный</button>
                                 <button class="btn btn-remove" data-id="${item.id}">Удалить</button>
                             </div>
                         </div>`;
@@ -500,6 +502,47 @@
                         body: JSON.stringify({ id: this.dataset.id }),
                     });
                     reloadFavorites();
+                });
+            });
+            document.querySelectorAll('.btn-schedule-fav').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const text = this.dataset.text;
+                    const existingPanel = document.querySelector('.fav-schedule-panel');
+                    if (existingPanel) existingPanel.remove();
+
+                    const panel = document.createElement('div');
+                    panel.className = 'fav-schedule-panel';
+                    panel.style.cssText = 'margin-top:8px; padding:12px; background:#f0f6ff; border-radius:8px;';
+                    panel.innerHTML = `
+                        <label style="font-size:12px; font-weight:600; color:#444;">Дата и время:</label>
+                        <input type="datetime-local" class="fav-schedule-time" style="padding:8px; border:2px solid #d0d0d0; border-radius:6px; font-size:13px; margin:6px 0; width:100%;">
+                        <button class="btn btn-schedule fav-schedule-confirm" style="font-size:12px; padding:6px 14px;">Запланировать</button>
+                        <button class="btn btn-copy fav-schedule-cancel" style="font-size:12px; padding:6px 14px; margin-left:6px;">Отмена</button>
+                    `;
+                    this.closest('.fav-item').appendChild(panel);
+
+                    panel.querySelector('.fav-schedule-confirm').addEventListener('click', async () => {
+                        const dt = panel.querySelector('.fav-schedule-time').value;
+                        if (!dt) { alert('Укажите дату и время'); return; }
+                        try {
+                            const resp = await fetch('/schedule', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ text, publish_at: dt }),
+                            });
+                            const data = await resp.json();
+                            if (data.ok) {
+                                panel.innerHTML = `<div style="color:#27ae60; font-weight:600; font-size:13px;">${data.message}</div>`;
+                                setTimeout(() => panel.remove(), 2000);
+                            } else {
+                                panel.innerHTML = `<div style="color:#c0392b; font-size:13px;">${data.error}</div>`;
+                            }
+                        } catch {
+                            panel.innerHTML = '<div style="color:#c0392b; font-size:13px;">Ошибка соединения</div>';
+                        }
+                    });
+
+                    panel.querySelector('.fav-schedule-cancel').addEventListener('click', () => panel.remove());
                 });
             });
         }
