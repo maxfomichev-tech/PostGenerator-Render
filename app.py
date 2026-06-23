@@ -199,7 +199,7 @@ def generate_post_with_gemini(name, description, price, link, mood) -> str:
 
     for attempt in range(1, 4):
         try:
-            response = client.models.generate_content(model="gemini-2.5-flash-lite", contents=prompt)
+            response = client.models.generate_content(model="gemini-latest-flash-lite", contents=prompt)
             post = response.text
             post = post.replace("[ссылка на товар]", link)
             post = post.replace("[ссылка]", link)
